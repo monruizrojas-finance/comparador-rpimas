@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comparador de Primas</title>
+  <meta name="description" content="Compara la prima directa entre dos compañías de seguros en Chile, por ramo.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>Comparador de Primas</h1>
+      <p class="sub" id="subtitulo">Prima directa por compañía y ramo</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="controles" aria-label="Filtros">
+      <div class="segmentado" role="tablist" id="mercado">
+        <button role="tab" data-v="generales" aria-selected="true">Seguros Generales</button>
+        <button role="tab" data-v="vida" aria-selected="false">Seguros de Vida</button>
+      </div>
+
+      <div class="selectores">
+        <label class="campo">
+          <span><i class="punto a"></i>Compañía A</span>
+          <select id="selA"></select>
+        </label>
+        <button class="intercambiar" id="swap" title="Intercambiar compañías" aria-label="Intercambiar compañías">⇄</button>
+        <label class="campo">
+          <span><i class="punto b"></i>Compañía B</span>
+          <select id="selB"></select>
+        </label>
+      </div>
+
+      <div class="fila-opciones">
+        <label class="campo compacto" id="campoSeccion" hidden>
+          <span>Línea de negocio</span>
+          <select id="selSeccion"></select>
+        </label>
+        <div class="segmentado chico" id="metrica">
+          <button data-v="uf" aria-pressed="true">Prima (UF)</button>
+          <button data-v="pct" aria-pressed="false">% de su cartera</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="kpis" id="kpis" aria-live="polite"></section>
+
+    <section class="tarjeta">
+      <div class="tarjeta-cab">
+        <h2 id="tituloGrafico">Prima directa por ramo</h2>
+        <label class="check"><input type="checkbox" id="verTodos"> Ver todos los ramos</label>
+      </div>
+      <div class="leyenda" id="leyenda"></div>
+      <div class="grafico" id="contGrafico"></div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Detalle</h2>
+      <div class="tabla-scroll">
+        <table id="tabla">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pie" id="pie"></footer>
+  </main>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
