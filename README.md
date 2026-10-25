@@ -1,1 +1,1 @@
-# comparador-rpimas
+# comparador-primas
