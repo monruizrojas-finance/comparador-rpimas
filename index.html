@@ -3,73 +3,110 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Comparador de Primas</title>
-  <meta name="description" content="Compara la prima directa entre dos compañías de seguros en Chile, por ramo.">
+  <title>Seguros Generales en Chile</title>
+  <meta name="description" content="Ranking, comparador de prima y estado de resultados de las compañías de seguros generales en Chile.">
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
   <header class="top">
     <div class="wrap">
-      <h1>Comparador de Primas</h1>
-      <p class="sub" id="subtitulo">Prima directa por compañía y ramo</p>
+      <h1>Seguros Generales en Chile</h1>
+      <p class="sub" id="subtitulo">Prima directa y estado de resultados por compañía</p>
+      <nav class="pestanas" role="tablist" aria-label="Secciones">
+        <button role="tab" id="tab-ranking" data-tab="ranking" aria-controls="panel-ranking">Ranking<span class="largo"> de compañías</span></button>
+        <button role="tab" id="tab-comparador" data-tab="comparador" aria-controls="panel-comparador">Comparador<span class="largo"> de prima</span></button>
+        <button role="tab" id="tab-eerr" data-tab="eerr" aria-controls="panel-eerr"><span class="largo">Estado de r</span><span class="corto">R</span>esultados</button>
+      </nav>
     </div>
   </header>
 
   <main class="wrap">
-    <section class="controles" aria-label="Filtros">
-      <div class="segmentado" role="tablist" id="mercado">
-        <button role="tab" data-v="generales" aria-selected="true">Seguros Generales</button>
-        <button role="tab" data-v="vida" aria-selected="false">Seguros de Vida</button>
-      </div>
+    <!-- Selector de compañías compartido por el comparador y el estado de resultados -->
+    <section class="selectores" id="selectores" hidden aria-label="Compañías a comparar">
+      <label class="campo">
+        <span><i class="punto a"></i>Compañía A</span>
+        <select id="selA"></select>
+      </label>
+      <button class="intercambiar" id="swap" title="Intercambiar compañías" aria-label="Intercambiar compañías">⇄</button>
+      <label class="campo">
+        <span><i class="punto b"></i>Compañía B</span>
+        <select id="selB"></select>
+      </label>
+    </section>
 
-      <div class="selectores">
-        <label class="campo">
-          <span><i class="punto a"></i>Compañía A</span>
-          <select id="selA"></select>
-        </label>
-        <button class="intercambiar" id="swap" title="Intercambiar compañías" aria-label="Intercambiar compañías">⇄</button>
-        <label class="campo">
-          <span><i class="punto b"></i>Compañía B</span>
-          <select id="selB"></select>
-        </label>
-      </div>
-
-      <div class="fila-opciones">
-        <label class="campo compacto" id="campoSeccion" hidden>
-          <span>Línea de negocio</span>
-          <select id="selSeccion"></select>
-        </label>
-        <div class="segmentado chico" id="metrica">
-          <button data-v="uf" aria-pressed="true">Prima (UF)</button>
-          <button data-v="pct" aria-pressed="false">% de su cartera</button>
+    <!-- 1. Ranking -->
+    <section class="panel" id="panel-ranking" role="tabpanel" aria-labelledby="tab-ranking" hidden>
+      <div class="kpis" id="kpisRanking"></div>
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h2>Prima directa y participación de mercado</h2>
+          <input type="search" id="buscar" class="buscar" placeholder="Buscar compañía…" aria-label="Buscar compañía">
+        </div>
+        <div class="tabla-scroll">
+          <table id="tablaRanking" class="tabla-ranking">
+            <thead>
+              <tr>
+                <th data-orden="rank">#</th>
+                <th data-orden="nombre">Compañía</th>
+                <th data-orden="prima">Prima directa (UF)</th>
+                <th data-orden="part">Participación</th>
+                <th data-orden="acum">Part. acumulada</th>
+                <th><span class="sr">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
       </div>
     </section>
 
-    <section class="kpis" id="kpis" aria-live="polite"></section>
-
-    <section class="tarjeta">
-      <div class="tarjeta-cab">
-        <h2 id="tituloGrafico">Prima directa por ramo</h2>
-        <label class="check"><input type="checkbox" id="verTodos"> Ver todos los ramos</label>
+    <!-- 2. Comparador de prima -->
+    <section class="panel" id="panel-comparador" role="tabpanel" aria-labelledby="tab-comparador" hidden>
+      <div class="kpis" id="kpisPrima"></div>
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h2 id="tituloPrima">Prima directa por ramo (UF)</h2>
+          <div class="opciones">
+            <div class="segmentado" id="metrica">
+              <button data-v="uf" aria-pressed="true">UF</button>
+              <button data-v="pct" aria-pressed="false">% de su cartera</button>
+            </div>
+            <label class="check"><input type="checkbox" id="verTodos"> Todos los ramos</label>
+          </div>
+        </div>
+        <div class="leyenda"></div>
+        <div class="grafico" id="graficoPrima"></div>
       </div>
-      <div class="leyenda" id="leyenda"></div>
-      <div class="grafico" id="contGrafico"></div>
+      <div class="tarjeta">
+        <h2>Detalle por ramo</h2>
+        <div class="tabla-scroll"><table id="tablaPrima"><thead></thead><tbody></tbody></table></div>
+      </div>
     </section>
 
-    <section class="tarjeta">
-      <h2>Detalle</h2>
-      <div class="tabla-scroll">
-        <table id="tabla">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
+    <!-- 3. Estado de resultados -->
+    <section class="panel" id="panel-eerr" role="tabpanel" aria-labelledby="tab-eerr" hidden>
+      <div class="kpis" id="kpisEerr"></div>
+      <div class="tarjeta">
+        <h2>Principales líneas del estado de resultados (UF)</h2>
+        <div class="leyenda"></div>
+        <div class="grafico" id="graficoEerr"></div>
+      </div>
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h2>Estado de resultados</h2>
+          <label class="check"><input type="checkbox" id="verDetalle"> Mostrar subcuentas</label>
+        </div>
+        <div class="tabla-scroll"><table id="tablaEerr"><thead></thead><tbody></tbody></table></div>
+        <p class="nota">Ingresos en positivo y costos en negativo. "% PD" = monto como porcentaje de la prima directa de cada compañía.</p>
       </div>
     </section>
 
     <footer class="pie" id="pie"></footer>
   </main>
 
+  <div class="tooltip" id="tooltip" hidden></div>
+
+  <script src="data/datos.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>

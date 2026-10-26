@@ -4,25 +4,25 @@ Sitio web estático para comparar la **prima directa** de dos compañías de seg
 
 ## Qué hace
 
-- Elige **Seguros Generales** o **Seguros de Vida**.
-- Selecciona dos compañías (A y B) y las intercambias con un clic.
-- Ve el total de cada una, su participación de mercado, su ranking y la diferencia entre ambas.
-- Gráfico de barras por ramo, en **UF** o como **% de la cartera** de cada compañía.
-- En Vida puedes filtrar por línea de negocio (Individuales, Colectivos, Bancaseguros y Retail, Previsionales).
-- Tabla de detalle con todos los ramos.
-- La URL guarda la comparación (por ejemplo `#m=vida&a=MetLife&b=Confuturo`), así que puedes compartir un enlace directo.
+Tres pestañas con datos de **Seguros Generales**:
+
+1. **Ranking de compañías**: prima directa, participación de mercado y participación acumulada de cada compañía. Se puede ordenar por columna y buscar por nombre.
+2. **Comparador de prima**: elige dos compañías y compara su prima directa por ramo, en UF o como % de su cartera.
+3. **Estado de resultados**: compara el estado de resultados de las mismas dos compañías, con gráfico de las líneas principales y tabla completa (con opción de ver subcuentas).
+
+La URL guarda la pestaña y las compañías elegidas, así que puedes compartir un enlace directo.
 
 ## Estructura
 
 ```
 ├── index.html               Página principal
 ├── assets/
-│   ├── style.css            Estilos (modo claro y oscuro)
-│   └── app.js               Lógica y gráfico (SVG, sin dependencias)
+│   ├── style.css            Estilos
+│   └── app.js               Lógica y gráficos (SVG, sin dependencias)
 ├── data/
-│   └── primas.json          Datos extraídos del Excel
+│   └── datos.js             Datos extraídos del Excel
 └── scripts/
-    └── extraer_datos.py     Convierte el Excel en data/primas.json
+    └── extraer_datos.py     Convierte el Excel en data/datos.js
 ```
 
 ## Publicar en GitHub Pages
@@ -42,13 +42,7 @@ Sitio web estático para comparar la **prima directa** de dos compañías de seg
 
 ## Verlo en tu computador
 
-El navegador no carga el JSON si abres `index.html` con doble clic, así que levanta un servidor local:
-
-```bash
-python -m http.server 8000
-```
-
-y abre <http://localhost:8000>.
+Abre `index.html` con doble clic; no necesitas instalar nada.
 
 ## Actualizar con un nuevo trimestre
 
@@ -57,10 +51,10 @@ Cuando tengas el informe del siguiente trimestre:
 ```bash
 pip install openpyxl
 python scripts/extraer_datos.py "Informe Trimestral 2026.09 - Web.xlsx"
-git add data/primas.json && git commit -m "Datos 2026.09" && git push
+git add data/datos.js && git commit -m "Datos 2026.09" && git push
 ```
 
-El script lee las hojas `Gen. Prima Directa` y `Vida Prima Directa` (encabezado de compañías en la fila 11, ramos desde la fila 12 hasta "Total") y detecta solo la fecha de corte.
+El script lee las hojas `Gen. Prima Directa` y `Gen. EERR` (encabezado de compañías en la fila 11) y detecta solo la fecha de corte. En el estado de resultados aplica la columna "Signos" del informe para mostrar ingresos en positivo y costos en negativo.
 
 ## Dependencias
 
