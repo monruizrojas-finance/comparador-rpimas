@@ -14,19 +14,40 @@
   const uf = (n) => (n < 0 ? "−" : "") + fmt.format(Math.abs(n));
   const pct = (v, t) => (t ? fmt1.format((v / t) * 100) + " %" : "–");
 
-  const D = window.DATOS;
-  if (!D) {
+  const DATOS = window.DATOS;
+  if (!DATOS || !DATOS.periodos) {
     document.querySelector("main").innerHTML =
       '<p class="tarjeta">No se encontraron los datos. Revisa que la carpeta <code>data</code> esté junto a <code>index.html</code>.</p>';
     return;
   }
-  const C = D.companias;
   const TOP_N = 12;
-  const PESTANAS = ["ranking", "comparador", "eerr"];
-  const cuenta = Object.fromEntries(D.eerr.map((c) => [c.codigo, c]));
+  const PESTANAS = ["ranking", "comparador", "eerr", "evolucion"];
+  const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+  // Período activo: D = datos del período, C = compañías, cuenta = EERR por código
+  let D, C, cuenta;
+  function usarPeriodo(fecha) {
+    D = DATOS.periodos.find((p) => p.fecha === fecha) || DATOS.periodos[0];
+    C = D.companias;
+    cuenta = Object.fromEntries(D.eerr.map((c) => [c.codigo, c]));
+    state.periodo = D.fecha;
+    if (!C.includes(state.a)) state.a = null;
+    if (!C.includes(state.b)) state.b = null;
+    if (!C.includes(state.comp)) state.comp = null;
+  }
+  // "30.06.2026" -> "ene–jun 2026"
+  const rangoPeriodo = (fecha) => {
+    const [, m, a] = fecha.split(".");
+    return `ene–${MESES[+m - 1]} ${a}`;
+  };
+  const etiquetaPeriodo = (fecha) => {
+    const [d, m, a] = fecha.split(".");
+    return `${d} ${MESES[+m - 1]} ${a} (acumulado ${rangoPeriodo(fecha)})`;
+  };
 
   const state = {
-    tab: "ranking", a: null, b: null,
+    tab: "ranking", a: null, b: null, periodo: null,
+    comp: null, periodoComp: null, metricaEvo: "part", verTodosEvo: false,
     metrica: "uf", verTodos: false, verDetalle: false,
     ordenRanking: { campo: "rank", dir: 1 }, busqueda: "",
   };
@@ -36,12 +57,17 @@
     const [tab, q] = location.hash.slice(1).split("?");
     if (PESTANAS.includes(tab)) state.tab = tab;
     const p = new URLSearchParams(q || "");
+    usarPeriodo(p.get("p"));
     if (C.includes(p.get("a"))) state.a = p.get("a");
     if (C.includes(p.get("b"))) state.b = p.get("b");
+    if (C.includes(p.get("c"))) state.comp = p.get("c");
+    if (DATOS.periodos.some((x) => x.fecha === p.get("q"))) state.periodoComp = p.get("q");
   }
   function escribirHash() {
-    const q = state.tab === "ranking" ? "" : "?" + new URLSearchParams({ a: state.a, b: state.b });
-    history.replaceState(null, "", "#" + state.tab + q);
+    const q = new URLSearchParams({ p: state.periodo });
+    if (state.tab === "comparador" || state.tab === "eerr") { q.set("a", state.a); q.set("b", state.b); }
+    if (state.tab === "evolucion") { q.set("c", state.comp); q.set("q", state.periodoComp); }
+    history.replaceState(null, "", "#" + state.tab + "?" + q);
   }
 
   /* =================== Tooltip compartido =================== */
@@ -69,8 +95,10 @@
     return t;
   }
 
-  function dibujarBarras(cont, filas, { fmtTick, fmtValor, conDiferencia }) {
-    cont._ultimo = [filas, { fmtTick, fmtValor, conDiferencia }];
+  function dibujarBarras(cont, filas, opciones) {
+    cont._ultimo = [filas, opciones];
+    const { fmtTick, fmtValor, conDiferencia, fmtDif } = opciones;
+    const nA = opciones.nombreA || state.a, nB = opciones.nombreB || state.b;
     const W = cont.clientWidth || 800;
     const movil = W < 560;
     const ROW = 44, BAR = 14, GAP = 2, TOP = 8, BOTTOM = 28;
@@ -95,7 +123,7 @@
         : `<path class="${cls}" d="M${b},${y} h-${w - r} a${r},${r} 0 0 0 -${r},${r} v${BAR - 2 * r} a${r},${r} 0 0 0 ${r},${r} h${w - r} Z"/>`;
     };
 
-    let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de barras: ${esc(state.a)} versus ${esc(state.b)}">`;
+    let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de barras: ${esc(nA)} versus ${esc(nB)}">`;
     for (const t of ticks) {
       svg += `<line class="grid" x1="${sx(t)}" x2="${sx(t)}" y1="${TOP}" y2="${H - BOTTOM}"/>`;
       svg += `<text class="tick" x="${sx(t)}" y="${H - 8}" text-anchor="middle">${fmtTick(t)}</text>`;
@@ -117,9 +145,10 @@
         const f = filas[+g.dataset.i];
         const d = f.a - f.b;
         mostrarTip(e, `<strong>${esc(f.etiqueta)}</strong>
-          <div><i class="punto a"></i>${esc(state.a)}: ${fmtValor(f.a)}</div>
-          <div><i class="punto b"></i>${esc(state.b)}: ${fmtValor(f.b)}</div>` +
-          (conDiferencia ? `<div class="tdif">Diferencia: ${signo(d)}${fmt.format(Math.abs(d))} UF</div>` : ""));
+          <div><i class="punto a"></i>${esc(nA)}: ${fmtValor(f.a)}</div>
+          <div><i class="punto b"></i>${esc(nB)}: ${fmtValor(f.b)}</div>` +
+          (fmtDif ? `<div class="tdif">Diferencia: ${fmtDif(d)}</div>` :
+            conDiferencia ? `<div class="tdif">Diferencia: ${signo(d)}${fmt.format(Math.abs(d))} UF</div>` : ""));
         g.classList.add("activa");
       });
       g.addEventListener("mouseleave", () => { ocultarTip(); g.classList.remove("activa"); });
@@ -127,15 +156,15 @@
   }
 
   function leyendas() {
-    document.querySelectorAll(".leyenda").forEach((el) => {
+    document.querySelectorAll(".leyenda:not([data-propia])").forEach((el) => {
       el.innerHTML = `<span><i class="punto a"></i>${esc(state.a)}</span><span><i class="punto b"></i>${esc(state.b)}</span>`;
     });
   }
 
   /* =================== 1. Ranking =================== */
-  function datosRanking() {
-    const total = D.prima.mercado;
-    const filas = C.map((n, i) => ({ nombre: n, prima: D.prima.totales[i] }))
+  function datosRanking(P = D) {
+    const total = P.prima.mercado;
+    const filas = P.companias.map((n, i) => ({ nombre: n, prima: P.prima.totales[i] }))
       .sort((x, y) => y.prima - x.prima);
     let acum = 0;
     filas.forEach((f, i) => {
@@ -297,6 +326,123 @@
       }).join("");
   }
 
+  /* =================== 4. Evolución entre períodos =================== */
+  // Compara la misma compañía en dos períodos usando proporciones (participación de mercado,
+  // % de cartera, % de la prima directa), porque los montos acumulados de períodos con distinta
+  // cantidad de meses no son comparables.
+  const corto = (fecha) => { const [, m, a] = fecha.split("."); return `${MESES[+m - 1]} ${a}`; };
+  const pp = (n) => (Math.abs(n) < 0.05 ? "0,0 pp" : `${signo(n)}${fmt1.format(Math.abs(n))} pp`);
+  const ppCls = (n) => (Math.abs(n) < 0.05 ? "" : n > 0 ? "pos" : "neg");
+  const LINEAS_RATIO = [
+    ["5.31.11.00", "Prima retenida (retención)"],
+    ["5.31.13.00", "Costo de siniestros"],
+    ["5.31.15.00", "Resultado de intermediación"],
+    ["5.31.16.00", "Gastos por reaseguro no proporcional"],
+    ["5.31.10.00", "Margen de contribución"],
+    ["5.31.20.00", "Costos de administración"],
+    ["5.31.30.00", "Resultado de inversiones"],
+    ["5.31.40.00", "Resultado técnico de seguros"],
+    ["5.31.00.00", "Resultado del período"],
+  ];
+
+  function renderEvolucion() {
+    // P1 = período más reciente, P2 = el anterior (la variación siempre va de P2 a P1)
+    let P1 = D, P2 = DATOS.periodos.find((x) => x.fecha === state.periodoComp);
+    const clave = (f) => f.split(".").reverse().join("");
+    if (P2 && clave(P2.fecha) > clave(P1.fecha)) [P1, P2] = [P2, P1];
+    const nombre = state.comp;
+    const n1 = corto(P1.fecha), n2 = P2 ? corto(P2.fecha) : "";
+    $("#leyendaEvo").innerHTML = `<span><i class="punto a"></i>${esc(n1)}</span><span><i class="punto b"></i>${esc(n2)}</span>`;
+
+    const i1 = P1.companias.indexOf(nombre), i2 = P2 ? P2.companias.indexOf(nombre) : -1;
+    if (!P2 || i2 < 0) {
+      $("#kpisEvo").innerHTML = `<div class="kpi">${esc(nombre)} no aparece en el informe de ${esc(n2 || "comparación")}.</div>`;
+      ["#graficoEvo", "#tablaEvo thead", "#tablaEvo tbody", "#tablaRatios thead", "#tablaRatios tbody"].forEach((s) => ($(s).innerHTML = ""));
+      return;
+    }
+
+    // KPIs
+    const r1 = datosRanking(P1).find((f) => f.nombre === nombre);
+    const r2 = datosRanking(P2).find((f) => f.nombre === nombre);
+    const ratio = (P, i, cod) => {
+      const c = Object.fromEntries(P.eerr.map((x) => [x.codigo, x]));
+      const pd = c["5.31.11.10"].valores[i];
+      return pd ? (c[cod].valores[i] / pd) * 100 : null;
+    };
+    const m1 = ratio(P1, i1, "5.31.00.00"), m2 = ratio(P2, i2, "5.31.00.00");
+    const dPart = (r1.part - r2.part) * 100, dRank = r2.rank - r1.rank;
+    const tarjeta = (titulo, v1, v2, det) => `
+      <div class="kpi"><div class="etq"><span>${titulo}</span></div>
+        <div class="par">
+          <div><i class="punto a"></i>${v1}<small>${esc(n1)}</small></div>
+          <div><i class="punto b"></i>${v2}<small>${esc(n2)}</small></div>
+        </div>
+        <div class="det">${det}</div></div>`;
+    $("#kpisEvo").innerHTML =
+      tarjeta("Participación de mercado", fmt1.format(r1.part * 100) + " %", fmt1.format(r2.part * 100) + " %",
+        `<span class="${ppCls(dPart)}">${pp(dPart)}</span> desde ${esc(n2)}`) +
+      tarjeta("Posición en el ranking", `#${r1.rank} de ${P1.companias.length}`, `#${r2.rank} de ${P2.companias.length}`,
+        dRank === 0 ? "Mantiene su posición" :
+          `<span class="${dRank > 0 ? "pos" : "neg"}">${dRank > 0 ? "Sube" : "Baja"} ${Math.abs(dRank)} ${Math.abs(dRank) === 1 ? "puesto" : "puestos"}</span>`) +
+      tarjeta("Resultado del período / prima directa",
+        m1 === null ? "–" : fmt1.format(m1) + " %", m2 === null ? "–" : fmt1.format(m2) + " %",
+        m1 === null || m2 === null ? "" : `<span class="${ppCls(m1 - m2)}">${pp(m1 - m2)}</span>`);
+
+    // Ramos: participación de mercado y % de cartera en cada período
+    const tot1 = P1.prima.totales[i1], tot2 = P2.prima.totales[i2];
+    const ramos2 = Object.fromEntries(P2.prima.ramos.map((r) => [r.nombre, r]));
+    const filas = P1.prima.ramos.map((r) => {
+      const q = ramos2[r.nombre] || { valores: [], mercado: 0 };
+      const v1 = r.valores[i1], v2 = q.valores[i2] || 0;
+      return {
+        etiqueta: r.nombre, v1, v2,
+        part1: r.mercado ? (v1 / r.mercado) * 100 : 0, part2: q.mercado ? (v2 / q.mercado) * 100 : 0,
+        cart1: tot1 ? (v1 / tot1) * 100 : 0, cart2: tot2 ? (v2 / tot2) * 100 : 0,
+      };
+    }).filter((f) => Math.abs(f.v1) >= 1 || Math.abs(f.v2) >= 1);
+
+    const esPart = state.metricaEvo === "part";
+    document.querySelectorAll("#metricaEvo button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.metricaEvo)));
+    $("#tituloEvo").textContent = esPart
+      ? `Participación de mercado de ${nombre} en cada ramo`
+      : `Composición de la cartera de ${nombre} (% de su prima)`;
+    // Orden: ramos más importantes para la compañía primero (según su % de cartera)
+    let barras = [...filas].sort((x, y) => Math.max(y.cart1, y.cart2) - Math.max(x.cart1, x.cart2))
+      .map((f) => ({ etiqueta: f.etiqueta, a: esPart ? f.part1 : f.cart1, b: esPart ? f.part2 : f.cart2 }));
+    if (!state.verTodosEvo) barras = barras.slice(0, TOP_N);
+    dibujarBarras($("#graficoEvo"), barras, {
+      nombreA: n1, nombreB: n2,
+      fmtTick: (v) => fmt.format(v) + " %",
+      fmtValor: (v) => fmt1.format(v) + " %",
+      fmtDif: pp,
+    });
+    $("#notaEvo").textContent = esPart
+      ? "Participación = prima de la compañía en el ramo ÷ prima del mercado en ese ramo."
+      : "Cada barra muestra qué porcentaje de la prima total de la compañía viene de ese ramo.";
+
+    $("#tablaEvo thead").innerHTML = `<tr><th>Ramo</th>
+      <th>Part. mercado<br><small>${esc(n1)}</small></th><th><br><small>${esc(n2)}</small></th><th>Var.<br><small>pp</small></th>
+      <th>% cartera<br><small>${esc(n1)}</small></th><th><br><small>${esc(n2)}</small></th><th>Var.<br><small>pp</small></th></tr>`;
+    $("#tablaEvo tbody").innerHTML = [...filas].sort((x, y) => Math.max(y.cart1, y.cart2) - Math.max(x.cart1, x.cart2)).map((f) => `
+      <tr><td class="cuenta">${esc(f.etiqueta)}</td>
+        <td>${fmt1.format(f.part1)} %</td><td>${fmt1.format(f.part2)} %</td><td class="${ppCls(f.part1 - f.part2)}">${pp(f.part1 - f.part2)}</td>
+        <td>${fmt1.format(f.cart1)} %</td><td>${fmt1.format(f.cart2)} %</td><td class="${ppCls(f.cart1 - f.cart2)}">${pp(f.cart1 - f.cart2)}</td></tr>`).join("") +
+      `<tr class="total"><td>Total</td><td>${fmt1.format(r1.part * 100)} %</td><td>${fmt1.format(r2.part * 100)} %</td>
+        <td class="${ppCls(dPart)}">${pp(dPart)}</td><td>100 %</td><td>100 %</td><td></td></tr>`;
+
+    // Indicadores del estado de resultados como % de la prima directa
+    $("#tablaRatios thead").innerHTML = `<tr><th>Línea (% de la prima directa)</th>
+      <th>${esc(n1)}</th><th>${esc(n2)}</th><th>Var.<br><small>pp</small></th></tr>`;
+    $("#tablaRatios tbody").innerHTML = LINEAS_RATIO.map(([cod, etq]) => {
+      const a = ratio(P1, i1, cod), b = ratio(P2, i2, cod);
+      const d = a === null || b === null ? null : a - b;
+      const fila = cod === "5.31.00.00" ? ' class="total"' : "";
+      return `<tr${fila}><td class="cuenta">${etq}</td>
+        <td>${a === null ? "–" : fmt1.format(a) + " %"}</td><td>${b === null ? "–" : fmt1.format(b) + " %"}</td>
+        <td class="${d === null ? "" : ppCls(d)}">${d === null ? "–" : pp(d)}</td></tr>`;
+    }).join("");
+  }
+
   /* =================== Navegación y eventos =================== */
   function poblarSelectores() {
     const top = datosRanking();
@@ -307,14 +453,25 @@
     $("#selB").innerHTML = opciones;
     $("#selA").value = state.a;
     $("#selB").value = state.b;
+    // Pestaña Evolución: una compañía y un período de comparación
+    if (!state.comp) state.comp = state.a;
+    $("#selComp").innerHTML = opciones;
+    $("#selComp").value = state.comp;
+    const otros = DATOS.periodos.filter((x) => x.fecha !== state.periodo);
+    if (!otros.some((x) => x.fecha === state.periodoComp)) state.periodoComp = otros[0]?.fecha || null;
+    $("#selPeriodoComp").innerHTML = otros.map((x) => `<option value="${esc(x.fecha)}">${esc(etiquetaPeriodo(x.fecha))}</option>`).join("");
+    $("#selPeriodoComp").value = state.periodoComp;
+    $("#tab-evolucion").hidden = otros.length === 0;
   }
 
   function render() {
+    $("#subtitulo").textContent = `Prima directa y estado de resultados por compañía · cifras en UF, acumuladas ${rangoPeriodo(D.fecha)}`;
+    $("#pie").textContent = `Fuente: ${D.fuente} (hojas "Gen. Prima Directa" y "Gen. EERR"). Cifras acumuladas al ${D.fecha}, en UF.`;
     PESTANAS.forEach((t) => {
       $("#tab-" + t).setAttribute("aria-selected", String(t === state.tab));
       $("#panel-" + t).hidden = t !== state.tab;
     });
-    $("#selectores").hidden = state.tab === "ranking";
+    $("#selectores").hidden = state.tab === "ranking" || state.tab === "evolucion";
     $("#selA").value = state.a;
     $("#selB").value = state.b;
     leyendas();
@@ -322,10 +479,16 @@
     if (state.tab === "ranking") renderRanking();
     if (state.tab === "comparador") renderComparador();
     if (state.tab === "eerr") renderEerr();
+    if (state.tab === "evolucion") renderEvolucion();
     escribirHash();
   }
 
   function enlazar() {
+    $("#selPeriodo").addEventListener("change", (e) => {
+      usarPeriodo(e.target.value);
+      poblarSelectores();
+      render();
+    });
     document.querySelectorAll(".pestanas button").forEach((b) =>
       b.addEventListener("click", () => { state.tab = b.dataset.tab; render(); }));
 
@@ -339,6 +502,12 @@
       state.b = e.target.value;
       render();
     });
+    $("#selComp").addEventListener("change", (e) => { state.comp = e.target.value; render(); });
+    $("#selPeriodoComp").addEventListener("change", (e) => { state.periodoComp = e.target.value; render(); });
+    $("#metricaEvo").addEventListener("click", (e) => {
+      const v = e.target.closest("button")?.dataset.v;
+      if (v) { state.metricaEvo = v; render(); }
+    });
     $("#swap").addEventListener("click", () => { [state.a, state.b] = [state.b, state.a]; render(); });
 
     $("#metrica").addEventListener("click", (e) => {
@@ -346,6 +515,7 @@
       if (v) { state.metrica = v; render(); }
     });
     $("#verTodos").addEventListener("change", (e) => { state.verTodos = e.target.checked; render(); });
+    $("#verTodosEvo").addEventListener("change", (e) => { state.verTodosEvo = e.target.checked; render(); });
     $("#verDetalle").addEventListener("change", (e) => { state.verDetalle = e.target.checked; render(); });
 
     $("#buscar").addEventListener("input", (e) => { state.busqueda = e.target.value; renderRanking(); });
@@ -381,9 +551,10 @@
   }
 
   /* =================== Inicio =================== */
-  $("#subtitulo").textContent = `Prima directa y estado de resultados por compañía · cifras en UF al ${D.fecha}`;
-  $("#pie").textContent = `Fuente: ${D.fuente} (hojas "Gen. Prima Directa" y "Gen. EERR"). Cifras acumuladas al ${D.fecha}, en UF.`;
   leerHash();
+  $("#selPeriodo").innerHTML = DATOS.periodos
+    .map((p) => `<option value="${esc(p.fecha)}">${esc(etiquetaPeriodo(p.fecha))}</option>`).join("");
+  $("#selPeriodo").value = state.periodo;
   poblarSelectores();
   enlazar();
   render();

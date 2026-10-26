@@ -5,9 +5,9 @@ Extrae del Informe Trimestral (Seguros Generales):
   - Estado de Resultados por compañía  (hoja "Gen. EERR")
 y genera data/datos.js para el sitio.
 
-Uso:
+Uso (uno o más informes; cada uno queda como un período en el sitio):
     pip install openpyxl
-    python scripts/extraer_datos.py "Informe Trimestral 2026.06 - Web.xlsx"
+    python scripts/extraer_datos.py "Informe Trimestral 2026.06 - Web.xlsx" "Informe Trimestral 2025.12 - Web.xlsx"
 """
 import json
 import re
@@ -123,30 +123,43 @@ def leer_eerr(ws, companias_esperadas):
     return cuentas
 
 
-def main():
-    if len(sys.argv) < 2:
-        sys.exit(__doc__)
-    wb = openpyxl.load_workbook(sys.argv[1], data_only=True)
-
+def leer_periodo(ruta):
+    wb = openpyxl.load_workbook(ruta, data_only=True)
     subtitulo = limpiar(wb[HOJA_PRIMA]["B9"].value)  # "Cifras en UF al 30.06.2026"
     prima = leer_prima(wb[HOJA_PRIMA])
     eerr = leer_eerr(wb[HOJA_EERR], prima["companias"])
-
-    salida = {
+    periodo = {
         "fecha": subtitulo.split(" al ")[-1],
         "unidad": "UF",
-        "fuente": Path(sys.argv[1]).name,
+        "fuente": Path(ruta).name,
         "companias": prima["companias"],
         "prima": {k: prima[k] for k in ("totales", "mercado", "mercado_anterior", "fecha_anterior", "ramos")},
         "eerr": eerr,
     }
-    print(f"{len(salida['companias'])} compañías · {len(prima['ramos'])} ramos · {len(eerr)} cuentas de EERR")
+    print(f"{periodo['fecha']}: {len(periodo['companias'])} compañías · "
+          f"{len(prima['ramos'])} ramos · {len(eerr)} cuentas de EERR")
+    return periodo
+
+
+def orden_fecha(p):
+    d, m, a = p["fecha"].split(".")
+    return (int(a), int(m), int(d))
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    periodos = [leer_periodo(r) for r in sys.argv[1:]]
+    periodos.sort(key=orden_fecha, reverse=True)  # el más reciente primero
+    fechas = [p["fecha"] for p in periodos]
+    if len(set(fechas)) != len(fechas):
+        sys.exit("Hay dos informes con la misma fecha de corte")
 
     # Se guarda como .js para que el sitio funcione también abriendo index.html con doble clic
     destino = Path(__file__).resolve().parent.parent / "data" / "datos.js"
-    contenido = json.dumps(salida, ensure_ascii=False, separators=(",", ":"))
+    contenido = json.dumps({"periodos": periodos}, ensure_ascii=False, separators=(",", ":"))
     destino.write_text(f"window.DATOS = {contenido};\n", encoding="utf-8")
-    print(f"Escrito {destino}")
+    print(f"Escrito {destino} con {len(periodos)} períodos: {', '.join(fechas)}")
 
 
 if __name__ == "__main__":

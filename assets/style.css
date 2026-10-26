@@ -31,6 +31,13 @@ body {
 h1 { margin: 0; font-size: 1.75rem; letter-spacing: -0.02em; }
 h2 { margin: 0 0 12px; font-size: 1.05rem; }
 .sub { margin: 4px 0 18px; color: var(--text-2); }
+.cabecera { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px 16px; flex-wrap: wrap; margin: 4px 0 18px; }
+.cabecera .sub { margin: 0; }
+.periodo { display: grid; gap: 2px; font-size: 0.8rem; color: var(--text-2); }
+.periodo select {
+  font: inherit; font-size: 0.95rem; font-weight: 600; color: var(--text); background: var(--soft);
+  border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px;
+}
 .pestanas { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
 .pestanas::-webkit-scrollbar { display: none; }
 .pestanas button {
@@ -44,6 +51,8 @@ h2 { margin: 0 0 12px; font-size: 1.05rem; }
 /* Selectores de compañías */
 .selectores { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; margin-bottom: 20px; }
 .selectores[hidden] { display: none; }
+.selectores-evo { grid-template-columns: 1fr 1fr; margin-bottom: 10px; }
+.aviso { font-size: 0.85rem; color: var(--text-2); background: var(--soft); border-radius: 10px; padding: 10px 14px; margin: 0 0 20px; }
 .campo { display: grid; gap: 4px; font-size: 0.85rem; color: var(--text-2); }
 .campo span { display: flex; align-items: center; gap: 6px; }
 .campo select {
@@ -114,7 +123,7 @@ h2 { margin: 0 0 12px; font-size: 1.05rem; }
 .tooltip .tdif { opacity: 0.75; margin-top: 2px; }
 
 /* Tablas */
-.tabla-scroll { overflow-x: auto; }
+.tabla-scroll { overflow-x: auto; position: relative; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
 th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
 th:first-child, td:first-child { text-align: left; }
@@ -153,12 +162,14 @@ tr.total td { font-weight: 650; border-top: 2px solid var(--border); }
 .pie { color: var(--text-3); font-size: 0.82rem; padding: 0 0 40px; }
 
 @media (max-width: 680px) {
-  .selectores { grid-template-columns: 1fr; }
+  .selectores, .selectores-evo { grid-template-columns: 1fr; }
   .intercambiar { justify-self: center; transform: rotate(90deg); }
   .kpis { grid-template-columns: 1fr; }
   h1 { font-size: 1.4rem; }
   .barra-part .pista { width: 60px; }
   .buscar { min-width: 0; width: 100%; }
   .pestanas .largo { display: none; }
+  .pestanas { gap: 0; }
+  .pestanas button { padding: 10px 6px; font-size: 0.84rem; }
   .pestanas .corto { display: inline; }
 }

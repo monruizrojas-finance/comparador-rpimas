@@ -11,11 +11,18 @@
   <header class="top">
     <div class="wrap">
       <h1>Seguros Generales en Chile</h1>
-      <p class="sub" id="subtitulo">Prima directa y estado de resultados por compañía</p>
+      <div class="cabecera">
+        <p class="sub" id="subtitulo">Prima directa y estado de resultados por compañía</p>
+        <label class="periodo">
+          <span>Período</span>
+          <select id="selPeriodo"></select>
+        </label>
+      </div>
       <nav class="pestanas" role="tablist" aria-label="Secciones">
         <button role="tab" id="tab-ranking" data-tab="ranking" aria-controls="panel-ranking">Ranking<span class="largo"> de compañías</span></button>
         <button role="tab" id="tab-comparador" data-tab="comparador" aria-controls="panel-comparador">Comparador<span class="largo"> de prima</span></button>
         <button role="tab" id="tab-eerr" data-tab="eerr" aria-controls="panel-eerr"><span class="largo">Estado de r</span><span class="corto">R</span>esultados</button>
+        <button role="tab" id="tab-evolucion" data-tab="evolucion" aria-controls="panel-evolucion">Evolución<span class="largo"> entre períodos</span></button>
       </nav>
     </div>
   </header>
@@ -98,6 +105,47 @@
         </div>
         <div class="tabla-scroll"><table id="tablaEerr"><thead></thead><tbody></tbody></table></div>
         <p class="nota">Ingresos en positivo y costos en negativo. "% PD" = monto como porcentaje de la prima directa de cada compañía.</p>
+      </div>
+    </section>
+
+    <!-- 4. Evolución entre períodos -->
+    <section class="panel" id="panel-evolucion" role="tabpanel" aria-labelledby="tab-evolucion" hidden>
+      <div class="selectores selectores-evo">
+        <label class="campo">
+          <span>Compañía</span>
+          <select id="selComp"></select>
+        </label>
+        <label class="campo">
+          <span>Comparar con el período</span>
+          <select id="selPeriodoComp"></select>
+        </label>
+      </div>
+      <p class="aviso">Se comparan proporciones (participación, % de cartera, % de la prima directa) y no montos, porque las cifras son acumuladas desde enero y los períodos pueden cubrir distinta cantidad de meses.</p>
+      <div class="kpis" id="kpisEvo"></div>
+      <div class="tarjeta">
+        <div class="tarjeta-cab">
+          <h2 id="tituloEvo">Participación de mercado por ramo</h2>
+          <div class="opciones">
+            <div class="segmentado" id="metricaEvo">
+              <button data-v="part" aria-pressed="true">Participación de mercado</button>
+              <button data-v="cartera" aria-pressed="false">% de su cartera</button>
+            </div>
+            <label class="check"><input type="checkbox" id="verTodosEvo"> Todos los ramos</label>
+          </div>
+        </div>
+        <div class="leyenda" id="leyendaEvo" data-propia></div>
+        <div class="grafico" id="graficoEvo"></div>
+        <p class="nota" id="notaEvo"></p>
+      </div>
+      <div class="tarjeta">
+        <h2>Detalle por ramo</h2>
+        <div class="tabla-scroll"><table id="tablaEvo"><thead></thead><tbody></tbody></table></div>
+        <p class="nota">pp = puntos porcentuales. La variación va del período anterior al más reciente; verde = sube.</p>
+      </div>
+      <div class="tarjeta">
+        <h2>Indicadores del estado de resultados</h2>
+        <div class="tabla-scroll"><table id="tablaRatios"><thead></thead><tbody></tbody></table></div>
+        <p class="nota">Cada línea como % de la prima directa de la compañía en ese período. Los costos son negativos: una variación positiva significa que el costo pesa menos.</p>
       </div>
     </section>
 
